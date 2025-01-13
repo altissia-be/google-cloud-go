@@ -23,10 +23,17 @@ import (
 	pb "cloud.google.com/go/firestore/apiv1/firestorepb"
 	"cloud.google.com/go/internal/fields"
 )
+// DataToUnmarshaller is used to provide a custom "unmarshal" method to parse custom types from firestore
+// This interface is added manually in our fork because Google's Firestore team seems to not want to include it.
+// See multiple issues in the github repo: (https://github.com/googleapis/google-cloud-go/issues/1740 and https://github.com/googleapis/google-cloud-go/issues/2610)
+// But they provide no alternative for now...
+type DataToUnmarshaller interface {
+	UnmarshalFirestore(dest reflect.Value, val *pb.Value) error
+}
 
-func setFromProtoValue(dest interface{}, vprotoSrc *pb.Value, c *Client) error {
-	destV := reflect.ValueOf(dest)
-	if destV.Kind() != reflect.Ptr || destV.IsNil() {
+func setFromProtoValue(x interface{}, vproto *pb.Value, c *Client) error {
+	v := reflect.ValueOf(x)
+	if v.Kind() != reflect.Ptr || v.IsNil() {
 		return errors.New("firestore: nil or not a pointer")
 	}
 	return setReflectFromProtoValue(destV.Elem(), vprotoSrc, c)
@@ -37,6 +44,10 @@ func setFromProtoValue(dest interface{}, vprotoSrc *pb.Value, c *Client) error {
 func setReflectFromProtoValue(vDest reflect.Value, vprotoSrc *pb.Value, c *Client) error {
 	typeErr := func() error {
 		return fmt.Errorf("firestore: cannot set type %s to %s", vDest.Type(), typeString(vprotoSrc))
+	}
+
+	if m, ok := vDest.Interface().(DataToUnmarshaller); ok {
+		return m.UnmarshalFirestore(vDest, vprotoSrc)
 	}
 
 	valTypeSrc := vprotoSrc.ValueType
