@@ -31,9 +31,9 @@ type DataToUnmarshaller interface {
 	UnmarshalFirestore(dest reflect.Value, val *pb.Value) error
 }
 
-func setFromProtoValue(x interface{}, vproto *pb.Value, c *Client) error {
-	v := reflect.ValueOf(x)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
+func setFromProtoValue(dest interface{}, vprotoSrc *pb.Value, c *Client) error {
+	destV := reflect.ValueOf(dest)
+	if destV.Kind() != reflect.Ptr || destV.IsNil() {
 		return errors.New("firestore: nil or not a pointer")
 	}
 	return setReflectFromProtoValue(destV.Elem(), vprotoSrc, c)
